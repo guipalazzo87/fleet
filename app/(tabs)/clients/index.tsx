@@ -5,6 +5,27 @@ import { database } from '@/config/firebaseConfig';
 import ListComponent from '@/components/ListComponent';
 import { Client } from '@/types/Client';
 
+interface FirebaseClientData {
+  name: string;
+  phone: string;
+  address?: string;
+  picture?: string;
+  documentPictures?: string[];
+}
+
+const transformClientData = (id: string, clientData: FirebaseClientData): Client => {
+  return {
+    id,
+    name: clientData.name,
+    title: clientData.name,
+    address: clientData.address || '',
+    phone: clientData.phone,
+    picture: clientData.picture || '',
+    documentPictures: clientData.documentPictures || [],
+    route: `/(tabs)/clients/${id}`,
+  };
+};
+
 export default function ClientsScreen() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,16 +35,12 @@ export default function ClientsScreen() {
   useEffect(() => {
     const clientsRef = ref(database, 'clients');
     const unsubscribe = onValue(clientsRef, snapshot => {
-      const data = snapshot.val();
-      if (data) {
-        const clientList = Object.entries(data).map(([id, values]) => ({
-          id,
-          title: values.name,
-          subtitle: `Phone: ${values.phone}`,
-          route: '/(tabs)/clients/[id]',
-          ...values,
-        }));
-        setClients(clientList as Client[]);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const clientList: Client[] = Object.entries(data).map(([id, client]) =>
+          transformClientData(id, client as FirebaseClientData)
+        );
+        setClients(clientList);
       } else {
         setClients([]);
       }

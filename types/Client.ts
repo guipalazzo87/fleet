@@ -1,8 +1,12 @@
-export type Client = {
+import { ListItemBase } from '@/types/ListItemBase';
+
+export interface Client extends ListItemBase {
   id: string;
   name: string;
-  phone: string;
+  title: string;
   address: string;
+  phone: string;
   picture: string;
-  documentPicture?: string;
-};
+  documentPictures: string[];
+  route: string;
+}

@@ -1,7 +1,18 @@
 import { database } from '@/config/firebaseConfig';
 import { get, ref, remove } from 'firebase/database';
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Button, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  BackHandler,
+  Button,
+  Image,
+  Linking,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { FontAwesome as FAIcon } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Client } from '@/types/Client';
@@ -18,7 +29,13 @@ export default function ClientDetailsScreen() {
       const clientRef = ref(database, `clients/${id}`);
       const snapshot = await get(clientRef);
       if (snapshot.exists()) {
-        setClient({ id, ...snapshot.val() });
+        const clientData = snapshot.val();
+        setClient({
+          id,
+          ...clientData,
+          picture: clientData.picture,
+          documentPictures: clientData.documentPictures,
+        });
       }
     };
     fetchClient();
@@ -34,6 +51,16 @@ export default function ClientDetailsScreen() {
 
     return () => backHandler.remove();
   }, []);
+
+  const handleDial = async (phone: string) => {
+    const phoneUrl = `tel:${phone}`;
+    await Linking.openURL(phoneUrl);
+  };
+
+  const handleWhatsApp = async (phone: string) => {
+    const whatsappUrl = `whatsapp://send?phone=${phone.replace(/\D/g, '')}`;
+    await Linking.openURL(whatsappUrl);
+  };
 
   const openModal = (imageUri: string) => {
     setSelectedImage(imageUri);
@@ -59,7 +86,6 @@ export default function ClientDetailsScreen() {
     const clientRef = ref(database, `clients/${client.id}`);
     remove(clientRef)
       .then(() => {
-        console.log('Client deleted successfully');
         setDeleteModalVisible(false);
         router.replace('/(tabs)/clients');
       })
@@ -67,6 +93,7 @@ export default function ClientDetailsScreen() {
         console.error('Error deleting client: ', error);
       });
   };
+
   if (!client) {
     return (
       <View style={styles.container}>
@@ -78,8 +105,17 @@ export default function ClientDetailsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => openModal(`data:image/jpeg;base64,${client.picture}`)}>
-          <Image source={{ uri: `data:image/jpeg;base64,${client.picture}` }} style={styles.image} />
+        <TouchableOpacity
+          onPress={() => (client.picture ? openModal(client.picture) : null)}
+          style={styles.imageContainer}
+        >
+          {client.picture ? (
+            <Image source={{ uri: client.picture }} style={styles.image} />
+          ) : (
+            <View style={[styles.image, styles.placeholderContainer]}>
+              <FAIcon name="user-circle" size={60} color="#ccc" />
+            </View>
+          )}
         </TouchableOpacity>
         <Text style={styles.name}>{client.name}</Text>
         <View style={styles.iconContainer}>
@@ -93,22 +129,34 @@ export default function ClientDetailsScreen() {
       </View>
       <View style={styles.detailsContainer}>
         <Text style={styles.label}>Phone:</Text>
-        <Text style={styles.value}>{client.phone}</Text>
+        <View style={styles.phoneContainer}>
+          <Text style={styles.value}>{client.phone}</Text>
+          <View style={styles.phoneButtons}>
+            <TouchableOpacity onPress={() => handleDial(client.phone)} style={styles.phoneButton}>
+              <FAIcon name="phone" size={24} color="#4CAF50" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleWhatsApp(client.phone)} style={styles.phoneButton}>
+              <FAIcon name="whatsapp" size={24} color="#25D366" />
+            </TouchableOpacity>
+          </View>
+        </View>
         <Text style={styles.label}>Address:</Text>
         <Text style={styles.value}>{client.address}</Text>
-        {client.documentPicture && (
-          <>
-            <Text style={styles.label}>Document Picture:</Text>
-            <TouchableOpacity onPress={() => openModal(`data:image/jpeg;base64,${client.documentPicture}`)}>
-              <Image
-                source={{
-                  uri: `data:image/jpeg;base64,${client.documentPicture}`,
-                }}
-                style={styles.documentImage}
-              />
-            </TouchableOpacity>
-          </>
-        )}
+        <View style={styles.documentImagesContainer}>
+          {client.documentPictures ? (
+            client.documentPictures.map((picture, index) => (
+              <TouchableOpacity key={index} onPress={() => openModal(picture)} style={styles.documentImageWrapper}>
+                <Image source={{ uri: picture }} style={styles.documentImage} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <>
+              <View style={[styles.documentImage, styles.placeholderContainer]}>
+                <FAIcon name="id-card" size={60} color="#ccc" />
+              </View>
+            </>
+          )}
+        </View>
       </View>
 
       <Modal visible={modalVisible} transparent={true} onRequestClose={closeModal}>
@@ -196,12 +244,6 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 4,
   },
-  documentImage: {
-    width: '100%',
-    height: 200,
-    marginTop: 16,
-    borderRadius: 8,
-  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -232,5 +274,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 16,
+  },
+  phoneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  phoneButtons: {
+    flexDirection: 'row',
+  },
+  phoneButton: {
+    marginLeft: 16,
+    padding: 8,
+  },
+  imageContainer: {
+    borderRadius: 60,
+    overflow: 'hidden',
+  },
+  placeholderContainer: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  documentImagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  documentImageWrapper: {
+    width: '48%',
+    aspectRatio: 1,
+  },
+  documentImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
 });

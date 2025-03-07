@@ -7,13 +7,7 @@
     "@react-native-community",
     "prettier"
   ],
-  "plugins": [
-    "react",
-    "react-native",
-    "@typescript-eslint",
-    "jest",
-    "prettier"
-  ],
+  "plugins": ["react", "react-native", "@typescript-eslint", "jest", "prettier"],
   "env": {
     "jest/globals": true
   },
@@ -29,6 +23,12 @@
       }
     ],
     "jsx-quotes": ["error", "prefer-double"],
-    "prettier/prettier": "error"
+    "prettier/prettier": "error",
+    "no-console": [
+      "warn",
+      {
+        "allow": ["warn", "error"]
+      }
+    ]
   }
 }
